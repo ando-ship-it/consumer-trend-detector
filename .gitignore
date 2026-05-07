@@ -1,0 +1,14 @@
+# Data (large files — keep locally, not in repo)
+data/
+
+# Outputs
+outputs/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+
+# macOS
+.DS_Store
