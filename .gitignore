@@ -1,8 +1,9 @@
 # Data (large files — keep locally, not in repo)
 data/
 
-# Outputs
-outputs/
+# Outputs — track CSVs and numpy arrays, skip large binaries
+outputs/*.pkl
+outputs/cleaned_*.csv
 
 # Python
 __pycache__/
