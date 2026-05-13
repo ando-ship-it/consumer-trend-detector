@@ -32,9 +32,11 @@ consumer-trend-detector/
 |-----|-------|--------|
 | 1–2 | EDA, text cleaning, TF-IDF baseline (Accuracy 67%, Macro F1 0.60) | ✅ |
 | 3 | Improved preprocessing, error analysis, app-level differences, sentence embeddings, semantic search | ✅ |
-| 4 | Topic modeling (BERTopic / LDA) | 🔜 |
-| 5 | Time-series trend detection | 🔜 |
-| 6+ | Streamlit dashboard | 🔜 |
+| 4 | Topic modeling (LDA), KMeans k=6 clustering | ✅ |
+| 5 | Time-series topic share, trend detection (growing/declining clusters) | ✅ |
+| 6 | KMeans k=12 final model, cluster labeling, trend score table | ✅ |
+| 7 | Binary TF-IDF+LR (F1 0.85), Embeddings+LR (F1 0.86), RoBERTa zero-shot (F1 0.91) — model comparison | ✅ |
+| 8+ | Save artifacts, UMAP visualization, Streamlit dashboard | 🔜 |
 
 ## Setup
 
