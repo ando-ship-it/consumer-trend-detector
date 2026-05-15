@@ -33,11 +33,23 @@ def load_sample():
 
 @st.cache_resource
 def load_embedder():
-    model_path = (
-        "embedding_model/models--sentence-transformers--all-MiniLM-L6-v2"
-        "/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"
-    )
-    return SentenceTransformer(model_path)
+    # Try local copy in project first, fall back to Downloads location
+    import os
+    candidates = [
+        os.path.join(os.path.dirname(__file__),
+                     "embedding_model/models--sentence-transformers--all-MiniLM-L6-v2"
+                     "/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"),
+        os.path.expanduser(
+            "~/Downloads/rag-travel-assistant-master/embedding_model"
+            "/models--sentence-transformers--all-MiniLM-L6-v2"
+            "/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"
+        ),
+    ]
+    for p in candidates:
+        if os.path.isdir(p):
+            return SentenceTransformer(p)
+    # Fallback: download from HuggingFace
+    return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 df, trend_score_df, cluster_by_month = load_data()
 df_sample, embeddings = load_sample()
