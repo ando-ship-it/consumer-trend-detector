@@ -1,228 +1,327 @@
 """
-Consumer Trend Signal Detector — Streamlit Dashboard
+Consumer Trend Signal Detector — Streamlit Dashboard (Day 9)
+Single-page layout with dark/clean styling.
 """
 
-import pickle
+import os
 import numpy as np
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
-from sentence_transformers import SentenceTransformer
+import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Consumer Trend Detector",
-    page_icon="📊",
+    page_icon="📡",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
+
+# ── Global CSS ────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+  /* hide default Streamlit header/footer */
+  #MainMenu, footer, header {visibility: hidden;}
+
+  /* app background */
+  .stApp { background: #0f1117; }
+
+  /* top banner */
+  .banner {
+    background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+    border-radius: 12px;
+    padding: 28px 36px 20px;
+    margin-bottom: 24px;
+    border: 1px solid #2a2f45;
+  }
+  .banner h1 { color: #e2e8f0; font-size: 2rem; margin: 0 0 4px; }
+  .banner p  { color: #94a3b8; margin: 0; font-size: 0.95rem; }
+
+  /* section headers */
+  .section-title {
+    color: #7dd3fc;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 32px 0 12px;
+    border-left: 3px solid #3b82f6;
+    padding-left: 10px;
+  }
+
+  /* metric cards */
+  div[data-testid="metric-container"] {
+    background: #1e2535;
+    border: 1px solid #2d3555;
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+  div[data-testid="metric-container"] label { color: #94a3b8 !important; font-size: 0.8rem !important; }
+  div[data-testid="metric-container"] div[data-testid="stMetricValue"] { color: #e2e8f0 !important; font-size: 1.6rem !important; }
+
+  /* search box */
+  .stTextInput input {
+    background: #1e2535 !important;
+    border: 1px solid #3b82f6 !important;
+    color: #e2e8f0 !important;
+    border-radius: 8px !important;
+  }
+
+  /* review card */
+  .review-card {
+    background: #1a1f2e;
+    border: 1px solid #2a2f45;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    font-size: 0.88rem;
+    color: #cbd5e1;
+    line-height: 1.5;
+  }
+  .badge-pos { color: #4ade80; font-weight: 700; }
+  .badge-neg { color: #f87171; font-weight: 700; }
+  .badge-neu { color: #94a3b8; font-weight: 700; }
+  .sim-score { color: #7dd3fc; font-weight: 600; }
+  .cluster-tag { color: #a78bfa; font-style: italic; font-size: 0.82rem; }
+
+  /* divider */
+  hr { border-color: #2a2f45 !important; }
+
+  /* selectbox / multiselect */
+  div[data-baseweb="select"] > div {
+    background: #1e2535 !important;
+    border-color: #2d3555 !important;
+    color: #e2e8f0 !important;
+  }
+</style>
+""", unsafe_allow_html=True)
 
 # ── Load artifacts ─────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    df = pd.read_csv("outputs/df_clustered.csv")
-    trend = pd.read_csv("outputs/trend_score.csv")
-    cbm = pd.read_csv("outputs/cluster_by_month.csv", index_col="month")
-    return df, trend, cbm
+    df      = pd.read_csv("outputs/df_clustered.csv")
+    trend   = pd.read_csv("outputs/trend_score.csv")
+    cbm     = pd.read_csv("outputs/cluster_by_month.csv", index_col="month")
+    cbm.index = cbm.index.astype(str)
+    umap_df = pd.read_csv("outputs/umap_2d.csv")
+    return df, trend, cbm, umap_df
 
 @st.cache_data
 def load_sample():
     df_s = pd.read_csv("outputs/df_sample.csv")
-    emb = np.load("outputs/embeddings.npy")
+    emb  = np.load("outputs/embeddings.npy")
     return df_s, emb
 
 @st.cache_resource
 def load_embedder():
-    # Try local copy in project first, fall back to Downloads location
-    import os
     candidates = [
         os.path.join(os.path.dirname(__file__),
-                     "embedding_model/models--sentence-transformers--all-MiniLM-L6-v2"
-                     "/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"),
+            "embedding_model/models--sentence-transformers--all-MiniLM-L6-v2"
+            "/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"),
         os.path.expanduser(
             "~/Downloads/rag-travel-assistant-master/embedding_model"
             "/models--sentence-transformers--all-MiniLM-L6-v2"
-            "/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"
-        ),
+            "/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"),
     ]
     for p in candidates:
         if os.path.isdir(p):
             return SentenceTransformer(p)
-    # Fallback: download from HuggingFace
     return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-df, trend_score_df, cluster_by_month = load_data()
+df, trend_score_df, cluster_by_month, umap_df = load_data()
 df_sample, embeddings = load_sample()
 embedder = load_embedder()
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
-st.sidebar.title("📊 Consumer Trend Detector")
-st.sidebar.markdown("Google Play Store reviews · 2015–2020")
-page = st.sidebar.radio(
-    "Navigate",
-    ["🏠 Overview", "📈 Trend Signals", "🔍 Semantic Search"],
-)
+# ── Banner ────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="banner">
+  <h1>📡 Consumer Trend Signal Detector</h1>
+  <p>NLP analysis of Google Play Store reviews · 11,190 reviews · 2015 – 2020 · 12 topic clusters</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ── KPI row ───────────────────────────────────────────────────────────────────
+pos_pct = round((df["sentiment"] == "Positive").mean() * 100, 1)
+neg_pct = round((df["sentiment"] == "Negative").mean() * 100, 1)
+top_trend = trend_score_df.sort_values("trend_score", ascending=False).iloc[0]
+
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Total reviews",    f"{len(df):,}")
+c2.metric("Topic clusters",   "12")
+c3.metric("Positive",         f"{pos_pct}%")
+c4.metric("Negative",         f"{neg_pct}%")
+c5.metric("Top trend signal", top_trend["cluster"])
+
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 1 — OVERVIEW
+# ROW 1 — Trend signals + Time-series
 # ══════════════════════════════════════════════════════════════════════════════
-if page == "🏠 Overview":
-    st.title("Consumer Trend Signal Detector")
-    st.markdown(
-        "Detects **emerging topic trends** in app store reviews using "
-        "NLP clustering and time-series analysis."
+st.markdown('<div class="section-title">📈 Trend Signals</div>', unsafe_allow_html=True)
+
+left, right = st.columns([1, 2])
+
+with left:
+    # Trend score bar chart
+    ts = trend_score_df.sort_values("trend_score").copy()
+    ts["growth_pct"] = (ts["growth_rate"] * 100).round(1)
+    ts["neg_pct"]    = (ts["neg_share"]   * 100).round(1)
+
+    fig_trend = go.Figure(go.Bar(
+        x=ts["trend_score"],
+        y=ts["cluster"],
+        orientation="h",
+        marker=dict(
+            color=ts["trend_score"],
+            colorscale=[[0, "#1e3a5f"], [0.5, "#3b82f6"], [1, "#f97316"]],
+            showscale=False,
+        ),
+        customdata=ts[["growth_pct", "neg_pct"]].values,
+        hovertemplate="<b>%{y}</b><br>Score: %{x:.5f}<br>Growth: %{customdata[0]}%<br>Neg share: %{customdata[1]}%<extra></extra>",
+    ))
+    fig_trend.update_layout(
+        height=380, margin=dict(l=0, r=10, t=10, b=10),
+        paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
+        xaxis=dict(title="Trend score", color="#94a3b8", gridcolor="#1e2535"),
+        yaxis=dict(color="#cbd5e1", tickfont=dict(size=11)),
+        font=dict(color="#cbd5e1"),
+    )
+    st.plotly_chart(fig_trend, use_container_width=True)
+
+with right:
+    # Time-series selector
+    default_clusters = ["Task management", "Premium / paywall friction", "Ads friction", "Habit tracking"]
+    sel = st.multiselect(
+        "Clusters to plot",
+        options=list(cluster_by_month.columns),
+        default=[c for c in default_clusters if c in cluster_by_month.columns],
+        label_visibility="collapsed",
     )
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total reviews", f"{len(df):,}")
-    col2.metric("Clusters (topics)", "12")
-    col3.metric("Date range", "2015 – 2020")
-
-    st.markdown("---")
-    st.subheader("Sentiment distribution")
-    sent_counts = df["sentiment"].value_counts()
-    fig, ax = plt.subplots(figsize=(5, 3))
-    colors = {"Positive": "#4caf50", "Negative": "#f44336", "Neutral": "#9e9e9e"}
-    bars = ax.bar(
-        sent_counts.index,
-        sent_counts.values,
-        color=[colors.get(s, "#888") for s in sent_counts.index],
-    )
-    for bar, val in zip(bars, sent_counts.values):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 50,
-                f"{val:,}", ha="center", fontsize=9)
-    ax.set_ylabel("Reviews")
-    ax.set_title("Reviews by sentiment")
-    st.pyplot(fig)
-    plt.close()
-
-    st.markdown("---")
-    st.subheader("Cluster size distribution")
-    cluster_counts = df["cluster_label"].value_counts().sort_values(ascending=True)
-    fig2, ax2 = plt.subplots(figsize=(7, 5))
-    ax2.barh(cluster_counts.index, cluster_counts.values, color="#1976d2")
-    ax2.set_xlabel("Number of reviews")
-    ax2.set_title("Reviews per topic cluster")
-    st.pyplot(fig2)
-    plt.close()
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 2 — TREND SIGNALS
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "📈 Trend Signals":
-    st.title("📈 Trend Signals")
-    st.markdown(
-        "**Trend score** = growth rate × negative share. "
-        "High score → topic is growing AND users are unhappy → actionable signal."
-    )
-
-    # Trend score table
-    st.subheader("Trend score ranking")
-    display_df = trend_score_df.copy()
-    display_df["growth_rate"] = (display_df["growth_rate"] * 100).round(1).astype(str) + "%"
-    display_df["neg_share"] = (display_df["neg_share"] * 100).round(1).astype(str) + "%"
-    display_df["share_early"] = (display_df["share_early"] * 100).round(1).astype(str) + "%"
-    display_df["share_recent"] = (display_df["share_recent"] * 100).round(1).astype(str) + "%"
-    display_df["trend_score"] = display_df["trend_score"].round(5)
-    display_df.columns = ["Cluster", "Share (early)", "Share (recent)", "Growth", "Neg share", "Trend score"]
-    st.dataframe(
-        display_df.sort_values("Trend score", ascending=False).reset_index(drop=True),
-        use_container_width=True,
-    )
-
-    st.markdown("---")
-
-    # Time-series chart
-    st.subheader("Topic share over time")
-
-    cluster_options = list(cluster_by_month.columns)
-    selected_clusters = st.multiselect(
-        "Select clusters to plot",
-        options=cluster_options,
-        default=["Task management", "Premium / paywall friction", "Ads friction", "Habit tracking"],
-    )
-
-    if selected_clusters:
-        fig3, ax3 = plt.subplots(figsize=(12, 5))
-        for col in selected_clusters:
-            if col in cluster_by_month.columns:
-                ax3.plot(
-                    range(len(cluster_by_month)),
-                    cluster_by_month[col].values,
-                    label=col,
-                    linewidth=2,
-                )
-
-        # X-axis ticks every 6 months
-        tick_step = 6
-        ticks = list(range(0, len(cluster_by_month), tick_step))
-        ax3.set_xticks(ticks)
-        ax3.set_xticklabels(
-            [str(cluster_by_month.index[t]) for t in ticks],
-            rotation=45, ha="right", fontsize=8
+    if sel:
+        palette = px.colors.qualitative.Plotly
+        fig_ts = go.Figure()
+        for i, col in enumerate(sel):
+            fig_ts.add_trace(go.Scatter(
+                x=list(cluster_by_month.index),
+                y=cluster_by_month[col].values,
+                name=col,
+                mode="lines",
+                line=dict(width=2, color=palette[i % len(palette)]),
+                hovertemplate=f"<b>{col}</b><br>Month: %{{x}}<br>Share: %{{y:.1%}}<extra></extra>",
+            ))
+        # X ticks every 6 months
+        all_idx = list(cluster_by_month.index)
+        tick_vals = all_idx[::6]
+        fig_ts.update_layout(
+            height=380, margin=dict(l=0, r=10, t=10, b=60),
+            paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
+            xaxis=dict(tickvals=tick_vals, tickangle=-45, color="#94a3b8",
+                       gridcolor="#1e2535", tickfont=dict(size=10)),
+            yaxis=dict(tickformat=".0%", color="#94a3b8", gridcolor="#1e2535"),
+            legend=dict(bgcolor="#1a1f2e", bordercolor="#2a2f45",
+                        font=dict(color="#cbd5e1", size=11)),
+            font=dict(color="#cbd5e1"),
+            hovermode="x unified",
         )
-        ax3.set_ylabel("Share of monthly reviews")
-        ax3.set_title("Topic share over time (monthly)")
-        ax3.legend(loc="upper left", fontsize=8)
-        ax3.grid(alpha=0.3)
-        st.pyplot(fig3)
-        plt.close()
+        st.plotly_chart(fig_ts, use_container_width=True)
     else:
-        st.info("Select at least one cluster above.")
+        st.info("Select at least one cluster.")
 
-    st.markdown("---")
-
-    # Cluster explorer
-    st.subheader("Explore cluster reviews")
-    chosen_cluster = st.selectbox("Choose a cluster", sorted(df["cluster_label"].unique()))
-    sentiment_filter = st.radio("Filter by sentiment", ["All", "Positive", "Negative", "Neutral"], horizontal=True)
-
-    subset = df[df["cluster_label"] == chosen_cluster]
-    if sentiment_filter != "All":
-        subset = subset[subset["sentiment"] == sentiment_filter]
-
-    st.markdown(f"**{len(subset):,} reviews** in this cluster/filter")
-    sample_reviews = subset["review_text"].dropna().sample(min(10, len(subset)), random_state=42)
-    for i, review in enumerate(sample_reviews, 1):
-        st.markdown(f"{i}. {review}")
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 3 — SEMANTIC SEARCH
+# ROW 2 — UMAP cluster map + Cluster explorer
 # ══════════════════════════════════════════════════════════════════════════════
-elif page == "🔍 Semantic Search":
-    st.title("🔍 Semantic Search")
-    st.markdown(
-        "Type any query and find the **most semantically similar reviews** "
-        "from the dataset. Uses `all-MiniLM-L6-v2` sentence embeddings."
+st.markdown('<div class="section-title">🗺 Cluster Map & Review Explorer</div>', unsafe_allow_html=True)
+
+map_col, exp_col = st.columns([2, 1])
+
+with map_col:
+    fig_umap = px.scatter(
+        umap_df, x="x", y="y",
+        color="cluster_label",
+        hover_data={"review_text": True, "sentiment": True, "x": False, "y": False},
+        color_discrete_sequence=px.colors.qualitative.Plotly,
+        opacity=0.6,
+        template="plotly_dark",
     )
+    fig_umap.update_traces(marker=dict(size=3))
+    fig_umap.update_layout(
+        height=420, margin=dict(l=0, r=0, t=10, b=10),
+        paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
+        legend=dict(title="Cluster", bgcolor="#1a1f2e", bordercolor="#2a2f45",
+                    font=dict(color="#cbd5e1", size=10)),
+        xaxis=dict(visible=False), yaxis=dict(visible=False),
+    )
+    st.plotly_chart(fig_umap, use_container_width=True)
 
-    query = st.text_input("Enter your query:", placeholder="e.g. app crashes after update")
-    top_k = st.slider("Number of results", min_value=3, max_value=20, value=10)
+with exp_col:
+    chosen = st.selectbox("Topic cluster", sorted(df["cluster_label"].unique()), label_visibility="visible")
+    sent_f = st.radio("Sentiment", ["All", "Positive", "Negative", "Neutral"], horizontal=True)
 
+    sub = df[df["cluster_label"] == chosen]
+    if sent_f != "All":
+        sub = sub[sub["sentiment"] == sent_f]
+
+    pos_c = (sub["sentiment"] == "Positive").sum()
+    neg_c = (sub["sentiment"] == "Negative").sum()
+    st.caption(f"**{len(sub):,} reviews** · {pos_c} pos / {neg_c} neg")
+
+    samples = sub["review_text"].dropna().sample(min(8, len(sub)), random_state=42)
+    for rev in samples:
+        st.markdown(f'<div class="review-card">{rev}</div>', unsafe_allow_html=True)
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROW 3 — Semantic search
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown('<div class="section-title">🔍 Semantic Search</div>', unsafe_allow_html=True)
+
+q_col, res_col = st.columns([1, 2])
+
+with q_col:
+    query  = st.text_input("", placeholder="e.g. app crashes after update", label_visibility="collapsed")
+    top_k  = st.slider("Results", 3, 20, 8)
+    filter_sent = st.radio("Filter", ["All", "Positive", "Negative"], horizontal=True, key="search_sent")
+
+with res_col:
     if query.strip():
         with st.spinner("Searching..."):
-            query_vec = embedder.encode([query], normalize_embeddings=True)
-            sims = cosine_similarity(query_vec, embeddings)[0]
-            top_indices = sims.argsort()[::-1][:top_k]
+            qvec  = embedder.encode([query], normalize_embeddings=True)
+            sims  = cosine_similarity(qvec, embeddings)[0]
+            top_i = sims.argsort()[::-1]
 
-        st.markdown(f"**Top {top_k} results for:** _{query}_")
-        results = df_sample.iloc[top_indices][["review_text", "sentiment", "cluster_label"]].copy()
-        results["similarity"] = sims[top_indices].round(3)
-        results = results.reset_index(drop=True)
-        results.index += 1
+        results = df_sample.iloc[top_i].copy()
+        results["_sim"] = sims[top_i]
+        if filter_sent != "All":
+            results = results[results["sentiment"] == filter_sent]
+        results = results.head(top_k)
 
-        # Colour-code sentiment
-        def sentiment_badge(s):
-            colour = {"Positive": "green", "Negative": "red", "Neutral": "grey"}.get(s, "grey")
-            return f'<span style="color:{colour};font-weight:bold">{s}</span>'
-
+        badge_map = {"Positive": "badge-pos", "Negative": "badge-neg", "Neutral": "badge-neu"}
+        shown = 0
         for _, row in results.iterrows():
+            cls = badge_map.get(row["sentiment"], "badge-neu")
             st.markdown(
-                f"**[{row['similarity']:.3f}]** "
-                f"{sentiment_badge(row['sentiment'])} · "
-                f"*{row['cluster_label']}*<br>{row['review_text']}",
+                f'<div class="review-card">'
+                f'<span class="sim-score">{row["_sim"]:.3f}</span> · '
+                f'<span class="{cls}">{row["sentiment"]}</span> · '
+                f'<span class="cluster-tag">{row["cluster_label"]}</span><br>'
+                f'{row["review_text"]}'
+                f'</div>',
                 unsafe_allow_html=True,
             )
-            st.markdown("---")
+            shown += 1
+        if shown == 0:
+            st.info("No results for this sentiment filter.")
     else:
-        st.info("Enter a query above to search.")
+        st.markdown(
+            '<div class="review-card" style="color:#475569;text-align:center;padding:40px;">'
+            'Type a query on the left to search reviews by meaning, not keywords.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
