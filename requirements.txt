@@ -7,3 +7,5 @@ jupyter
 streamlit
 transformers
 torch
+umap-learn
+plotly
