@@ -506,22 +506,46 @@ def extract_feature_requests():
 @st.cache_data
 def top_request_phrases(fr_df, top_n=15):
     from sklearn.feature_extraction.text import CountVectorizer
+
+    # Only analyse text AFTER the trigger word — cuts noise like "great app"
+    def after_trigger(sentence):
+        m = FEATURE_RE.search(str(sentence).lower())
+        return sentence[m.end():] if m else sentence
+
+    after_texts = fr_df["request_sentence"].apply(after_trigger).str.lower().fillna("")
+
+    extra_stops = {
+        "app", "apps", "good", "great", "nice", "really", "just", "also", "still",
+        "like", "use", "used", "make", "made", "bit", "lot", "thing", "things",
+        "time", "way", "need", "want", "get", "got", "going", "new", "old",
+        "work", "works", "working", "feature", "features", "please", "able",
+        "different", "little", "come", "comes", "say", "said", "know", "think",
+        "yes", "no", "one", "two", "three", "ve", "ll", "re", "don", "doesn",
+        "better", "instead", "change", "set", "option", "options", "add",
+        "day", "days", "instead", "current", "currently", "back",
+    }
+    base_stops = set(CountVectorizer(stop_words="english").get_stop_words())
+
     vec = CountVectorizer(
-        ngram_range=(2, 3),
-        stop_words="english",
-        max_features=200,
-        token_pattern=r"[a-z]{3,}",
+        ngram_range=(1, 3),
+        stop_words=list(base_stops | extra_stops),
+        max_features=300,
+        min_df=2,
+        token_pattern=r"[a-z][a-z]{2,}",
     )
-    X = vec.fit_transform(fr_df["request_sentence"].str.lower().fillna(""))
+    try:
+        X = vec.fit_transform(after_texts)
+    except ValueError:
+        return pd.DataFrame({"phrase": [], "count": []})
+
     counts = X.sum(axis=0).A1
     vocab = vec.get_feature_names_out()
-    phrase_df = (
+    return (
         pd.DataFrame({"phrase": vocab, "count": counts})
         .sort_values("count", ascending=False)
         .head(top_n)
         .sort_values("count", ascending=True)
     )
-    return phrase_df
 
 fr_df = extract_feature_requests()
 phrase_df = top_request_phrases(fr_df)
