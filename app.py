@@ -205,6 +205,8 @@ c4.metric("Negative",       f"{neg_pct}%")
 c5.metric("Neutral",        f"{neu_pct}%")
 
 st.markdown("<hr>", unsafe_allow_html=True)
+st.caption("📦 Dataset: **15 productivity apps** (Todoist, Microsoft To Do, TickTick, Any.do, Habitica and others) · Google Play Store · **11,190 reviews** · Feb 2015 – Oct 2020")
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # INSIGHT LAYER — What users love / Pain points / Wanted features
@@ -311,31 +313,37 @@ st.markdown('<div class="section-title">📈 Trend Signals</div>', unsafe_allow_
 left, right = st.columns([1, 2])
 
 with left:
-    # Trend score bar chart
-    ts = trend_score_df.sort_values("trend_score").copy()
+    ts = trend_score_df.copy()
     ts["growth_pct"] = (ts["growth_rate"] * 100).round(1)
     ts["neg_pct"]    = (ts["neg_share"]   * 100).round(1)
+    ts = ts.sort_values("growth_pct")
+
+    # Color: growing + high-neg → red; growing + low-neg → teal; declining → gray
+    def bar_color(row):
+        if row["growth_pct"] <= 0:
+            return "#94a3b8"  # gray — declining
+        return f"rgba({int(239 * row['neg_share'])}, {int(68 * (1-row['neg_share']))}, {int(68 * row['neg_share'])}, 0.85)"
+    ts["color"] = ts.apply(bar_color, axis=1)
 
     fig_trend = go.Figure(go.Bar(
-        x=ts["trend_score"],
+        x=ts["growth_pct"],
         y=ts["cluster"],
         orientation="h",
-        marker=dict(
-            color=ts["trend_score"],
-            colorscale=[[0, "#1e3a5f"], [0.5, "#3b82f6"], [1, "#f97316"]],
-            showscale=False,
-        ),
-        customdata=ts[["growth_pct", "neg_pct"]].values,
-        hovertemplate="<b>%{y}</b><br>Score: %{x:.5f}<br>Growth: %{customdata[0]}%<br>Neg share: %{customdata[1]}%<extra></extra>",
+        marker=dict(color=ts["color"]),
+        customdata=ts[["neg_pct", "growth_pct"]].values,
+        hovertemplate="<b>%{y}</b><br>Share change: %{x:+.1f}%<br>Negative reviews: %{customdata[0]:.0f}%<extra></extra>",
     ))
     fig_trend.update_layout(
-        height=380, margin=dict(l=0, r=10, t=10, b=10),
+        height=380, margin=dict(l=0, r=10, t=30, b=10),
         paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
-        xaxis=dict(title="Trend score", color="#64748b", gridcolor="#e2e8f0"),
+        title=dict(text="Share change: early period → recent period", font=dict(size=12, color="#475569"), x=0),
+        xaxis=dict(title="Δ share of reviews (%)", color="#64748b", gridcolor="#e2e8f0", ticksuffix="%",
+                   zeroline=True, zerolinecolor="#334155", zerolinewidth=1),
         yaxis=dict(color="#334155", tickfont=dict(size=11)),
         font=dict(color="#334155"),
     )
     st.plotly_chart(fig_trend, use_container_width=True)
+    st.caption("Bar = how much this topic **grew or shrank** as a share of all reviews (2015–2016 vs 2019–2020). **Color**: red = mostly negative reviews, gray = declining topic.")
 
 with right:
     # Time-series selector
