@@ -272,7 +272,7 @@ def insight_card(cluster, growth_pct, action, cluster_type="feature"):
     return (
         f'<div class="insight-card">'
         f'<div class="insight-cluster">{cluster}</div>'
-        f'<div class="insight-growth" style="color:{color}">{arrow} {abs(growth_pct)}% vs. baseline</div>'
+        f'<div class="insight-growth" style="color:{color}">{arrow} {abs(growth_pct)}% vs. prior period</div>'
         f'<div class="insight-action">→ {action}</div>'
         f'</div>'
     )
