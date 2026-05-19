@@ -194,14 +194,14 @@ st.markdown("""
 # ── KPI row ───────────────────────────────────────────────────────────────────
 pos_pct = round((df["sentiment"] == "Positive").mean() * 100, 1)
 neg_pct = round((df["sentiment"] == "Negative").mean() * 100, 1)
-top_trend = trend_score_df.sort_values("trend_score", ascending=False).iloc[0]
+neu_pct = round((df["sentiment"] == "Neutral").mean() * 100, 1)
 
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Total reviews",    f"{len(df):,}")
-c2.metric("Topic clusters",   "12")
-c3.metric("Positive",         f"{pos_pct}%")
-c4.metric("Negative",         f"{neg_pct}%")
-c5.metric("Top trend signal", top_trend["cluster"])
+c1.metric("Total reviews",  f"{len(df):,}")
+c2.metric("Topic clusters", "12")
+c3.metric("Positive",       f"{pos_pct}%")
+c4.metric("Negative",       f"{neg_pct}%")
+c5.metric("Neutral",        f"{neu_pct}%")
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -383,26 +383,31 @@ st.markdown("<hr>", unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="section-title">🗺 Cluster Map & Review Explorer</div>', unsafe_allow_html=True)
 
-map_col, exp_col = st.columns([2, 1])
+map_col, exp_col = st.columns([1, 2])
 
 with map_col:
+    umap_df["snippet"] = umap_df["review_text"].str[:80].fillna("") + "…"
     fig_umap = px.scatter(
         umap_df, x="x", y="y",
         color="cluster_label",
-        hover_data={"review_text": True, "sentiment": True, "x": False, "y": False},
+        hover_data={"snippet": True, "sentiment": True, "x": False, "y": False},
         color_discrete_sequence=px.colors.qualitative.Plotly,
         opacity=0.7,
         template="plotly_white",
     )
     fig_umap.update_traces(marker=dict(size=3))
     fig_umap.update_layout(
-        height=420, margin=dict(l=0, r=0, t=10, b=10),
+        height=400, margin=dict(l=0, r=0, t=10, b=120),
         paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
-        legend=dict(title="Cluster", bgcolor="#ffffff", bordercolor="#e2e8f0",
-                    font=dict(color="#334155", size=10)),
+        legend=dict(
+            title="", orientation="h",
+            x=0, y=-0.05, yanchor="top",
+            bgcolor="#ffffff", font=dict(color="#334155", size=9),
+        ),
         xaxis=dict(visible=False), yaxis=dict(visible=False),
     )
     st.plotly_chart(fig_umap, use_container_width=True)
+    st.caption("Each dot = one review. Semantically similar reviews cluster together.")
 
 with exp_col:
     chosen = st.selectbox("Topic cluster", sorted(df["cluster_label"].unique()), label_visibility="visible")
@@ -416,9 +421,10 @@ with exp_col:
     neg_c = (sub["sentiment"] == "Negative").sum()
     st.caption(f"**{len(sub):,} reviews** · {pos_c} pos / {neg_c} neg")
 
-    samples = sub["review_text"].dropna().sample(min(8, len(sub)), random_state=42)
+    samples = sub["review_text"].dropna().sample(min(5, len(sub)), random_state=42)
     for rev in samples:
-        st.markdown(f'<div class="review-card">{rev}</div>', unsafe_allow_html=True)
+        excerpt = (rev[:180] + "…") if len(rev) > 180 else rev
+        st.markdown(f'<div class="review-card">{excerpt}</div>', unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
