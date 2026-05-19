@@ -27,88 +27,90 @@ st.markdown("""
   #MainMenu, footer, header {visibility: hidden;}
 
   /* app background */
-  .stApp { background: #0f1117; }
+  .stApp { background: #f8fafc; }
 
   /* top banner */
   .banner {
-    background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
     border-radius: 12px;
     padding: 28px 36px 20px;
     margin-bottom: 24px;
-    border: 1px solid #2a2f45;
   }
-  .banner h1 { color: #e2e8f0; font-size: 2rem; margin: 0 0 4px; }
-  .banner p  { color: #94a3b8; margin: 0; font-size: 0.95rem; }
+  .banner h1 { color: #ffffff; font-size: 2rem; margin: 0 0 4px; }
+  .banner p  { color: #bfdbfe; margin: 0; font-size: 0.95rem; }
 
   /* section headers */
   .section-title {
-    color: #7dd3fc;
+    color: #1e40af;
     font-size: 1rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     margin: 32px 0 12px;
-    border-left: 3px solid #3b82f6;
+    border-left: 3px solid #2563eb;
     padding-left: 10px;
   }
 
   /* metric cards */
   div[data-testid="metric-container"] {
-    background: #1e2535;
-    border: 1px solid #2d3555;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 16px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
-  div[data-testid="metric-container"] label { color: #94a3b8 !important; font-size: 0.8rem !important; }
-  div[data-testid="metric-container"] div[data-testid="stMetricValue"] { color: #e2e8f0 !important; font-size: 1.6rem !important; }
+  div[data-testid="metric-container"] label { color: #64748b !important; font-size: 0.8rem !important; }
+  div[data-testid="metric-container"] div[data-testid="stMetricValue"] { color: #1e293b !important; font-size: 1.6rem !important; }
 
   /* search box */
   .stTextInput input {
-    background: #1e2535 !important;
-    border: 1px solid #3b82f6 !important;
-    color: #e2e8f0 !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
     border-radius: 8px !important;
   }
 
   /* review card */
   .review-card {
-    background: #1a1f2e;
-    border: 1px solid #2a2f45;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 12px 16px;
     margin-bottom: 8px;
     font-size: 0.88rem;
-    color: #cbd5e1;
+    color: #334155;
     line-height: 1.5;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   }
-  .badge-pos { color: #4ade80; font-weight: 700; }
-  .badge-neg { color: #f87171; font-weight: 700; }
-  .badge-neu { color: #94a3b8; font-weight: 700; }
-  .sim-score { color: #7dd3fc; font-weight: 600; }
-  .cluster-tag { color: #a78bfa; font-style: italic; font-size: 0.82rem; }
+  .badge-pos { color: #16a34a; font-weight: 700; }
+  .badge-neg { color: #dc2626; font-weight: 700; }
+  .badge-neu { color: #64748b; font-weight: 700; }
+  .sim-score { color: #2563eb; font-weight: 600; }
+  .cluster-tag { color: #7c3aed; font-style: italic; font-size: 0.82rem; }
 
   /* divider */
-  hr { border-color: #2a2f45 !important; }
+  hr { border-color: #e2e8f0 !important; }
 
   /* insight cards */
   .insight-card {
-    background: #1a1f2e;
-    border: 1px solid #2a2f45;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 12px 14px;
     margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   }
-  .insight-cluster { color: #e2e8f0; font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
+  .insight-cluster { color: #1e293b; font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
   .insight-growth  { font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; }
-  .insight-action  { color: #94a3b8; font-size: 0.82rem; line-height: 1.4; }
-  .insight-header  { color: #e2e8f0; font-weight: 700; margin-bottom: 4px; }
-  .insight-caption { color: #64748b; font-size: 0.78rem; margin-bottom: 10px; }
+  .insight-action  { color: #64748b; font-size: 0.82rem; line-height: 1.4; }
+  .insight-header  { color: #1e293b; font-weight: 700; margin-bottom: 4px; }
+  .insight-caption { color: #94a3b8; font-size: 0.78rem; margin-bottom: 10px; }
 
   /* selectbox / multiselect */
   div[data-baseweb="select"] > div {
-    background: #1e2535 !important;
-    border-color: #2d3555 !important;
-    color: #e2e8f0 !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #1e293b !important;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -326,10 +328,10 @@ with left:
     ))
     fig_trend.update_layout(
         height=380, margin=dict(l=0, r=10, t=10, b=10),
-        paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
-        xaxis=dict(title="Trend score", color="#94a3b8", gridcolor="#1e2535"),
-        yaxis=dict(color="#cbd5e1", tickfont=dict(size=11)),
-        font=dict(color="#cbd5e1"),
+        paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
+        xaxis=dict(title="Trend score", color="#64748b", gridcolor="#e2e8f0"),
+        yaxis=dict(color="#334155", tickfont=dict(size=11)),
+        font=dict(color="#334155"),
     )
     st.plotly_chart(fig_trend, use_container_width=True)
 
@@ -360,13 +362,13 @@ with right:
         tick_vals = all_idx[::6]
         fig_ts.update_layout(
             height=380, margin=dict(l=0, r=10, t=10, b=60),
-            paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
-            xaxis=dict(tickvals=tick_vals, tickangle=-45, color="#94a3b8",
-                       gridcolor="#1e2535", tickfont=dict(size=10)),
-            yaxis=dict(tickformat=".0%", color="#94a3b8", gridcolor="#1e2535"),
-            legend=dict(bgcolor="#1a1f2e", bordercolor="#2a2f45",
-                        font=dict(color="#cbd5e1", size=11)),
-            font=dict(color="#cbd5e1"),
+            paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
+            xaxis=dict(tickvals=tick_vals, tickangle=-45, color="#64748b",
+                       gridcolor="#e2e8f0", tickfont=dict(size=10)),
+            yaxis=dict(tickformat=".0%", color="#64748b", gridcolor="#e2e8f0"),
+            legend=dict(bgcolor="#ffffff", bordercolor="#e2e8f0",
+                        font=dict(color="#334155", size=11)),
+            font=dict(color="#334155"),
             hovermode="x unified",
         )
         st.plotly_chart(fig_ts, use_container_width=True)
@@ -388,15 +390,15 @@ with map_col:
         color="cluster_label",
         hover_data={"review_text": True, "sentiment": True, "x": False, "y": False},
         color_discrete_sequence=px.colors.qualitative.Plotly,
-        opacity=0.6,
-        template="plotly_dark",
+        opacity=0.7,
+        template="plotly_white",
     )
     fig_umap.update_traces(marker=dict(size=3))
     fig_umap.update_layout(
         height=420, margin=dict(l=0, r=0, t=10, b=10),
-        paper_bgcolor="#0f1117", plot_bgcolor="#0f1117",
-        legend=dict(title="Cluster", bgcolor="#1a1f2e", bordercolor="#2a2f45",
-                    font=dict(color="#cbd5e1", size=10)),
+        paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
+        legend=dict(title="Cluster", bgcolor="#ffffff", bordercolor="#e2e8f0",
+                    font=dict(color="#334155", size=10)),
         xaxis=dict(visible=False), yaxis=dict(visible=False),
     )
     st.plotly_chart(fig_umap, use_container_width=True)
