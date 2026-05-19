@@ -4,6 +4,7 @@ Single-page layout with dark/clean styling.
 """
 
 import os
+import re
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -469,3 +470,83 @@ with res_col:
             '</div>',
             unsafe_allow_html=True,
         )
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROW 4 — Feature Requests from 3-star reviews
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown('<div class="section-title">💬 Feature Requests (3-star reviews)</div>', unsafe_allow_html=True)
+st.caption(
+    "3-star reviews are from users who are **disappointed but not gone** — "
+    "the highest-value retention signal. Reviews filtered by feature-request language patterns."
+)
+
+FEATURE_RE = re.compile(
+    r"wish|would be great|please add|missing|if only|would love|would like"
+    r"|it would be (nice|great|helpful|awesome)|need a|add a|hope you|could you add"
+    r"|want to see|feature request|i('d| would) (love|like)|lacking|bring back"
+    r"|support for|option to|ability to|allow (us|me|users)",
+    re.IGNORECASE,
+)
+
+score_filter = st.radio(
+    "Star rating to analyse",
+    ["3 stars only", "1–3 stars (all dissatisfied)"],
+    horizontal=True,
+)
+
+@st.cache_data
+def extract_feature_requests(score_range):
+    subset = df[df["score"].isin(score_range)].copy()
+    subset = subset[subset["review_text"].notna()]
+    subset["has_request"] = subset["review_text"].str.contains(FEATURE_RE)
+    hits = subset[subset["has_request"]].copy()
+    # Extract the first matching sentence from each review
+    def first_match_sentence(text):
+        for sent in re.split(r"(?<=[.!?])\s+", text):
+            if FEATURE_RE.search(sent):
+                return sent.strip()
+        return text[:200]
+    hits["request_sentence"] = hits["review_text"].apply(first_match_sentence)
+    return hits
+
+score_range = [3] if score_filter == "3 stars only" else [1, 2, 3]
+fr_df = extract_feature_requests(tuple(score_range))
+
+fr_left, fr_right = st.columns([1, 2])
+
+with fr_left:
+    cluster_counts = (
+        fr_df.groupby("cluster_label").size()
+        .reset_index(name="requests")
+        .sort_values("requests", ascending=True)
+    )
+    fig_fr = go.Figure(go.Bar(
+        x=cluster_counts["requests"],
+        y=cluster_counts["cluster_label"],
+        orientation="h",
+        marker=dict(color="#6366f1"),
+        hovertemplate="<b>%{y}</b><br>%{x} feature requests<extra></extra>",
+    ))
+    fig_fr.update_layout(
+        height=360, margin=dict(l=0, r=10, t=10, b=10),
+        paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
+        xaxis=dict(title="# reviews with feature requests", color="#64748b", gridcolor="#e2e8f0"),
+        yaxis=dict(color="#334155", tickfont=dict(size=11)),
+        font=dict(color="#334155"),
+    )
+    st.plotly_chart(fig_fr, use_container_width=True)
+    st.caption(f"**{len(fr_df):,}** feature-request reviews out of **{df['score'].isin(score_range).sum():,}** in selected range")
+
+with fr_right:
+    cluster_sel = st.selectbox(
+        "Cluster",
+        options=cluster_counts.sort_values("requests", ascending=False)["cluster_label"].tolist(),
+        key="fr_cluster",
+    )
+    examples = fr_df[fr_df["cluster_label"] == cluster_sel]["request_sentence"].dropna()
+    examples = examples.sample(min(8, len(examples)), random_state=7)
+    for sent in examples:
+        st.markdown(f'<div class="review-card">{sent}</div>', unsafe_allow_html=True)
+
