@@ -206,14 +206,48 @@ st.markdown("<hr>", unsafe_allow_html=True)
 # INSIGHT LAYER — What users love / Pain points / Wanted features
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="section-title">🧠 Product Insights</div>', unsafe_allow_html=True)
-st.caption("📅 % change compares average cluster share in the **last third** of the dataset (≈2019–2020) vs the **first third** (≈2015–2016). Red = needs attention. Green = moving in the right direction.")
 
-# Compute % growth vs baseline for each cluster
+period = st.radio(
+    "Signal window",
+    ["3-month signal", "12-month signal", "Early vs Recent (~5yr)"],
+    horizontal=True,
+    help="Compare the most recent window against the prior equal-length window.",
+)
+
+PERIOD_CAPTIONS = {
+    "3-month signal":       "📅 Last 3 months (Aug–Oct 2020) vs prior 3 months (May–Jul 2020).",
+    "12-month signal":      "📅 Last 12 months (Nov 2019–Oct 2020) vs prior 12 months (Nov 2018–Oct 2019).",
+    "Early vs Recent (~5yr)": "📅 Last third of dataset (≈2019–2020) vs first third (≈2015–2016).",
+}
+st.caption(PERIOD_CAPTIONS[period] + "  Red = needs attention. Green = moving in the right direction.")
+
+# Compute growth_pct based on selected window
 ts_insight = trend_score_df.copy()
-ts_insight["growth_pct"] = (
-    (ts_insight["share_recent"] - ts_insight["share_early"])
-    / ts_insight["share_early"].replace(0, 0.0001) * 100
-).round(0).astype(int)
+
+if period == "3-month signal":
+    recent_w = cluster_by_month.iloc[-3:].mean()
+    prior_w  = cluster_by_month.iloc[-6:-3].mean()
+    def _pct(cluster):
+        r = recent_w.get(cluster, 0)
+        p = prior_w.get(cluster, 1e-6)
+        return int(round((r - p) / max(p, 1e-6) * 100))
+    ts_insight["growth_pct"] = ts_insight["cluster"].map(_pct)
+
+elif period == "12-month signal":
+    recent_w = cluster_by_month.iloc[-12:].mean()
+    prior_w  = cluster_by_month.iloc[-24:-12].mean()
+    def _pct(cluster):
+        r = recent_w.get(cluster, 0)
+        p = prior_w.get(cluster, 1e-6)
+        return int(round((r - p) / max(p, 1e-6) * 100))
+    ts_insight["growth_pct"] = ts_insight["cluster"].map(_pct)
+
+else:  # Early vs Recent
+    ts_insight["growth_pct"] = (
+        (ts_insight["share_recent"] - ts_insight["share_early"])
+        / ts_insight["share_early"].replace(0, 1e-6) * 100
+    ).round(0).astype(int)
+
 ts_insight["type"] = ts_insight["cluster"].map(CLUSTER_TYPE)
 
 satisfaction_df = ts_insight[ts_insight["type"] == "satisfaction"].sort_values("share_recent", ascending=False)
