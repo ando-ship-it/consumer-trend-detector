@@ -166,18 +166,18 @@ CLUSTER_TYPE = {
 }
 
 ACTION_POINTS = {
-    "Premium / paywall friction": "Review pricing tiers — users hit paywalls more often. Consider free trial or granular feature unlocks.",
-    "Ads friction":               "Ad frustration is rising. A/B test less intrusive formats or cap daily ad frequency.",
-    "App stability & updates":    "Crash and bug mentions are growing. Prioritise regression testing before the next release.",
-    "Sync & login issues":        "Auth/sync failures are increasing. Audit OAuth flows and offline-sync reliability.",
-    "Widget issues":              "Bug reports and demand coexist. Fix widget reliability before expanding widget features.",
-    "Calendar integration":       "Demand is growing fast. Invest in bidirectional Google Calendar / Outlook sync.",
-    "Habit tracking":             "Engagement with habit features is rising. Consider streaks, progress charts, and smart reminders.",
-    "Task management":            "Core feature with stable demand. Focus on UX polish rather than new capabilities.",
-    "Reminders & notifications":  "Notification customisation is frequently requested. Add granular controls and quiet hours.",
-    "General positive":           "Overall satisfaction is stable — protect what is already working.",
-    "Ease of use":                "UX is actively praised. Maintain simplicity when adding new features.",
-    "General task/app praise":    "General satisfaction is solid. Good baseline signal to track over time.",
+    "Premium / paywall friction": "Review pricing tiers. Consider free trial or granular feature unlocks.",
+    "Ads friction":               "A/B test less intrusive ad formats or cap daily ad frequency.",
+    "App stability & updates":    "Prioritise regression testing and crash fixes before the next release.",
+    "Sync & login issues":        "Audit OAuth flows and offline-sync reliability.",
+    "Widget issues":              "Fix widget reliability before expanding widget features.",
+    "Calendar integration":       "Invest in bidirectional Google Calendar / Outlook sync.",
+    "Habit tracking":             "Consider streaks, progress charts, and smart reminders.",
+    "Task management":            "Focus on UX polish rather than new capabilities.",
+    "Reminders & notifications":  "Add granular notification controls and quiet hours.",
+    "General positive":           "Protect what is already working — don't over-engineer.",
+    "Ease of use":                "Maintain simplicity when adding new features.",
+    "General task/app praise":    "Good baseline signal — track over time for shifts.",
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -219,9 +219,14 @@ satisfaction_df = ts_insight[ts_insight["type"] == "satisfaction"].sort_values("
 friction_df     = ts_insight[ts_insight["type"] == "friction"].sort_values("trend_score", ascending=False)
 feature_df      = ts_insight[ts_insight["type"] == "feature"].sort_values("trend_score", ascending=False)
 
-def insight_card(cluster, growth_pct, action):
+def insight_card(cluster, growth_pct, action, cluster_type="feature"):
     arrow = "↑" if growth_pct > 0 else ("↓" if growth_pct < 0 else "→")
-    color = "#4ade80" if growth_pct > 0 else ("#f87171" if growth_pct < 0 else "#94a3b8")
+    # Friction: growth is bad (red), decline is good (green)
+    # Satisfaction/Feature: growth is good (green), decline is bad (red)
+    if cluster_type == "friction":
+        color = "#f87171" if growth_pct > 0 else ("#4ade80" if growth_pct < 0 else "#94a3b8")
+    else:
+        color = "#4ade80" if growth_pct > 0 else ("#f87171" if growth_pct < 0 else "#94a3b8")
     return (
         f'<div class="insight-card">'
         f'<div class="insight-cluster">{cluster}</div>'
@@ -237,21 +242,21 @@ with love_col:
     st.markdown('<div class="insight-caption">High-share satisfaction clusters — don\'t break these.</div>', unsafe_allow_html=True)
     for _, row in satisfaction_df.iterrows():
         action = ACTION_POINTS.get(row["cluster"], "")
-        st.markdown(insight_card(row["cluster"], row["growth_pct"], action), unsafe_allow_html=True)
+        st.markdown(insight_card(row["cluster"], row["growth_pct"], action, "satisfaction"), unsafe_allow_html=True)
 
 with pain_col:
-    st.markdown('<div class="insight-header">🚨 Growing pain points</div>', unsafe_allow_html=True)
-    st.markdown('<div class="insight-caption">Friction clusters ranked by trend score — fix urgently.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="insight-header">🚨 Pain points</div>', unsafe_allow_html=True)
+    st.markdown('<div class="insight-caption">Friction clusters — red = getting worse, green = improving.</div>', unsafe_allow_html=True)
     for _, row in friction_df.iterrows():
         action = ACTION_POINTS.get(row["cluster"], "")
-        st.markdown(insight_card(row["cluster"], row["growth_pct"], action), unsafe_allow_html=True)
+        st.markdown(insight_card(row["cluster"], row["growth_pct"], action, "friction"), unsafe_allow_html=True)
 
 with feat_col:
     st.markdown('<div class="insight-header">💡 Feature demand</div>', unsafe_allow_html=True)
     st.markdown('<div class="insight-caption">Growing feature clusters — invest here next.</div>', unsafe_allow_html=True)
     for _, row in feature_df.iterrows():
         action = ACTION_POINTS.get(row["cluster"], "")
-        st.markdown(insight_card(row["cluster"], row["growth_pct"], action), unsafe_allow_html=True)
+        st.markdown(insight_card(row["cluster"], row["growth_pct"], action, "feature"), unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
