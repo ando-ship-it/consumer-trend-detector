@@ -490,19 +490,11 @@ FEATURE_RE = re.compile(
     re.IGNORECASE,
 )
 
-score_filter = st.radio(
-    "Star rating to analyse",
-    ["3 stars only", "1–3 stars (all dissatisfied)"],
-    horizontal=True,
-)
-
 @st.cache_data
-def extract_feature_requests(score_range):
-    subset = df[df["score"].isin(score_range)].copy()
+def extract_feature_requests():
+    subset = df[df["score"] == 3].copy()
     subset = subset[subset["review_text"].notna()]
-    subset["has_request"] = subset["review_text"].str.contains(FEATURE_RE)
-    hits = subset[subset["has_request"]].copy()
-    # Extract the first matching sentence from each review
+    hits = subset[subset["review_text"].str.contains(FEATURE_RE)].copy()
     def first_match_sentence(text):
         for sent in re.split(r"(?<=[.!?])\s+", text):
             if FEATURE_RE.search(sent):
@@ -511,38 +503,59 @@ def extract_feature_requests(score_range):
     hits["request_sentence"] = hits["review_text"].apply(first_match_sentence)
     return hits
 
-score_range = [3] if score_filter == "3 stars only" else [1, 2, 3]
-fr_df = extract_feature_requests(tuple(score_range))
+@st.cache_data
+def top_request_phrases(fr_df, top_n=15):
+    from sklearn.feature_extraction.text import CountVectorizer
+    vec = CountVectorizer(
+        ngram_range=(2, 3),
+        stop_words="english",
+        max_features=200,
+        token_pattern=r"[a-z]{3,}",
+    )
+    X = vec.fit_transform(fr_df["request_sentence"].str.lower().fillna(""))
+    counts = X.sum(axis=0).A1
+    vocab = vec.get_feature_names_out()
+    phrase_df = (
+        pd.DataFrame({"phrase": vocab, "count": counts})
+        .sort_values("count", ascending=False)
+        .head(top_n)
+        .sort_values("count", ascending=True)
+    )
+    return phrase_df
+
+fr_df = extract_feature_requests()
+phrase_df = top_request_phrases(fr_df)
 
 fr_left, fr_right = st.columns([1, 2])
 
 with fr_left:
+    fig_phrases = go.Figure(go.Bar(
+        x=phrase_df["count"],
+        y=phrase_df["phrase"],
+        orientation="h",
+        marker=dict(color="#6366f1"),
+        hovertemplate="<b>%{y}</b><br>mentioned %{x} times<extra></extra>",
+    ))
+    fig_phrases.update_layout(
+        height=420, margin=dict(l=0, r=10, t=10, b=10),
+        paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
+        xaxis=dict(title="mentions in 3-star reviews", color="#64748b", gridcolor="#e2e8f0"),
+        yaxis=dict(color="#334155", tickfont=dict(size=11)),
+        font=dict(color="#334155"),
+        title=dict(text="Most requested phrases", font=dict(size=13, color="#1e293b"), x=0),
+    )
+    st.plotly_chart(fig_phrases, use_container_width=True)
+    st.caption(f"**{len(fr_df):,}** feature-request reviews out of **{(df['score']==3).sum():,}** 3-star reviews")
+
+with fr_right:
     cluster_counts = (
         fr_df.groupby("cluster_label").size()
         .reset_index(name="requests")
-        .sort_values("requests", ascending=True)
+        .sort_values("requests", ascending=False)
     )
-    fig_fr = go.Figure(go.Bar(
-        x=cluster_counts["requests"],
-        y=cluster_counts["cluster_label"],
-        orientation="h",
-        marker=dict(color="#6366f1"),
-        hovertemplate="<b>%{y}</b><br>%{x} feature requests<extra></extra>",
-    ))
-    fig_fr.update_layout(
-        height=360, margin=dict(l=0, r=10, t=10, b=10),
-        paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
-        xaxis=dict(title="# reviews with feature requests", color="#64748b", gridcolor="#e2e8f0"),
-        yaxis=dict(color="#334155", tickfont=dict(size=11)),
-        font=dict(color="#334155"),
-    )
-    st.plotly_chart(fig_fr, use_container_width=True)
-    st.caption(f"**{len(fr_df):,}** feature-request reviews out of **{df['score'].isin(score_range).sum():,}** in selected range")
-
-with fr_right:
     cluster_sel = st.selectbox(
-        "Cluster",
-        options=cluster_counts.sort_values("requests", ascending=False)["cluster_label"].tolist(),
+        "Browse by cluster",
+        options=cluster_counts["cluster_label"].tolist(),
         key="fr_cluster",
     )
     examples = fr_df[fr_df["cluster_label"] == cluster_sel]["request_sentence"].dropna()
