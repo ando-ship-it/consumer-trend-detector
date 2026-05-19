@@ -206,6 +206,7 @@ st.markdown("<hr>", unsafe_allow_html=True)
 # INSIGHT LAYER — What users love / Pain points / Wanted features
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="section-title">🧠 Product Insights</div>', unsafe_allow_html=True)
+st.caption("📅 % change compares average cluster share in the **last third** of the dataset (≈2019–2020) vs the **first third** (≈2015–2016). Red = needs attention. Green = moving in the right direction.")
 
 # Compute % growth vs baseline for each cluster
 ts_insight = trend_score_df.copy()
@@ -221,12 +222,16 @@ feature_df      = ts_insight[ts_insight["type"] == "feature"].sort_values("trend
 
 def insight_card(cluster, growth_pct, action, cluster_type="feature"):
     arrow = "↑" if growth_pct > 0 else ("↓" if growth_pct < 0 else "→")
-    # Friction: growth is bad (red), decline is good (green)
-    # Satisfaction/Feature: growth is good (green), decline is bad (red)
-    if cluster_type == "friction":
-        color = "#f87171" if growth_pct > 0 else ("#4ade80" if growth_pct < 0 else "#94a3b8")
-    else:
+    # Red = needs attention. Green = moving in the right direction.
+    # Satisfaction: growth is good (green), decline is bad (red)
+    # Friction:     growth is bad (red),  decline is good (green)
+    # Feature:      growth = high demand, needs investment (red); decline = neutral (gray)
+    if cluster_type == "satisfaction":
         color = "#4ade80" if growth_pct > 0 else ("#f87171" if growth_pct < 0 else "#94a3b8")
+    elif cluster_type == "friction":
+        color = "#f87171" if growth_pct > 0 else ("#4ade80" if growth_pct < 0 else "#94a3b8")
+    else:  # feature
+        color = "#f87171" if growth_pct > 0 else "#94a3b8"
     return (
         f'<div class="insight-card">'
         f'<div class="insight-cluster">{cluster}</div>'
