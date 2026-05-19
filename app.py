@@ -503,62 +503,44 @@ def extract_feature_requests():
     hits["request_sentence"] = hits["review_text"].apply(first_match_sentence)
     return hits
 
+FEATURE_TAXONOMY = {
+    "Calendar sync":              r"calendar|google cal|ical|sync.{0,10}cal",
+    "Notifications & reminders":  r"notification|reminder|alarm|alert",
+    "Habit & routine tracking":   r"habit|routine|streak",
+    "Widget support":             r"widget",
+    "Recurring tasks":            r"recur|repeat.{0,10}(daily|every day|task)|daily (task|routine)",
+    "Priority & sorting":         r"priorit|sort.{0,10}task|filter.{0,10}task|arrange.{0,10}task",
+    "Backup & export":            r"backup|back.?up|export|restore data|backed up",
+    "Month / week view":          r"month.{0,10}view|week.{0,10}view|see.{0,15}(month|week)",
+    "Offline mode":               r"offline|without internet|no internet|no wifi",
+    "Themes & customization":     r"dark mode|dark theme|color.{0,10}(tag|code|theme|custom)|custom.{0,10}(color|theme|icon)",
+    "Task sharing / collab":      r"shar(e|ing).{0,15}(task|list)|collaborat|team.{0,10}task",
+    "Due time (not just date)":   r"due time|set time|time picker|time of day",
+}
+
 @st.cache_data
-def top_request_phrases(fr_df, top_n=15):
-    from sklearn.feature_extraction.text import CountVectorizer
-
-    # Only analyse text AFTER the trigger word — cuts noise like "great app"
-    def after_trigger(sentence):
-        m = FEATURE_RE.search(str(sentence).lower())
-        return sentence[m.end():] if m else sentence
-
-    after_texts = fr_df["request_sentence"].apply(after_trigger).str.lower().fillna("")
-
-    extra_stops = {
-        "app", "apps", "good", "great", "nice", "really", "just", "also", "still",
-        "like", "use", "used", "make", "made", "bit", "lot", "thing", "things",
-        "time", "way", "need", "want", "get", "got", "going", "new", "old",
-        "work", "works", "working", "feature", "features", "please", "able",
-        "different", "little", "come", "comes", "say", "said", "know", "think",
-        "yes", "no", "one", "two", "three", "ve", "ll", "re", "don", "doesn",
-        "better", "instead", "change", "set", "option", "options", "add",
-        "day", "days", "instead", "current", "currently", "back",
-    }
-    base_stops = set(CountVectorizer(stop_words="english").get_stop_words())
-
-    vec = CountVectorizer(
-        ngram_range=(1, 3),
-        stop_words=list(base_stops | extra_stops),
-        max_features=300,
-        min_df=2,
-        token_pattern=r"[a-z][a-z]{2,}",
-    )
-    try:
-        X = vec.fit_transform(after_texts)
-    except ValueError:
-        return pd.DataFrame({"phrase": [], "count": []})
-
-    counts = X.sum(axis=0).A1
-    vocab = vec.get_feature_names_out()
-    return (
-        pd.DataFrame({"phrase": vocab, "count": counts})
-        .sort_values("count", ascending=False)
-        .head(top_n)
-        .sort_values("count", ascending=True)
-    )
+def count_feature_taxonomy(fr_df):
+    rows = []
+    for label, pattern in FEATURE_TAXONOMY.items():
+        rx = re.compile(pattern, re.IGNORECASE)
+        n = fr_df["review_text"].str.contains(rx, regex=True).sum()
+        rows.append({"feature": label, "mentions": int(n)})
+    result = pd.DataFrame(rows)
+    result = result[result["mentions"] > 0].sort_values("mentions", ascending=True)
+    return result
 
 fr_df = extract_feature_requests()
-phrase_df = top_request_phrases(fr_df)
+taxonomy_df = count_feature_taxonomy(fr_df)
 
 fr_left, fr_right = st.columns([1, 2])
 
 with fr_left:
     fig_phrases = go.Figure(go.Bar(
-        x=phrase_df["count"],
-        y=phrase_df["phrase"],
+        x=taxonomy_df["mentions"],
+        y=taxonomy_df["feature"],
         orientation="h",
         marker=dict(color="#6366f1"),
-        hovertemplate="<b>%{y}</b><br>mentioned %{x} times<extra></extra>",
+        hovertemplate="<b>%{y}</b><br>%{x} mentions in 3-star reviews<extra></extra>",
     ))
     fig_phrases.update_layout(
         height=420, margin=dict(l=0, r=10, t=10, b=10),
@@ -566,7 +548,7 @@ with fr_left:
         xaxis=dict(title="mentions in 3-star reviews", color="#64748b", gridcolor="#e2e8f0"),
         yaxis=dict(color="#334155", tickfont=dict(size=11)),
         font=dict(color="#334155"),
-        title=dict(text="Most requested phrases", font=dict(size=13, color="#1e293b"), x=0),
+        title=dict(text="Most-requested features", font=dict(size=13, color="#1e293b"), x=0),
     )
     st.plotly_chart(fig_phrases, use_container_width=True)
     st.caption(f"**{len(fr_df):,}** feature-request reviews out of **{(df['score']==3).sum():,}** 3-star reviews")
