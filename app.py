@@ -543,7 +543,7 @@ with fr_left:
         hovertemplate="<b>%{y}</b><br>%{x} mentions in 3-star reviews<extra></extra>",
     ))
     fig_phrases.update_layout(
-        height=420, margin=dict(l=0, r=10, t=10, b=10),
+        height=460, margin=dict(l=0, r=10, t=30, b=10),
         paper_bgcolor="#ffffff", plot_bgcolor="#f8fafc",
         xaxis=dict(title="mentions in 3-star reviews", color="#64748b", gridcolor="#e2e8f0"),
         yaxis=dict(color="#334155", tickfont=dict(size=11)),
@@ -554,17 +554,15 @@ with fr_left:
     st.caption(f"**{len(fr_df):,}** feature-request reviews out of **{(df['score']==3).sum():,}** 3-star reviews")
 
 with fr_right:
-    cluster_counts = (
-        fr_df.groupby("cluster_label").size()
-        .reset_index(name="requests")
-        .sort_values("requests", ascending=False)
+    # Options ordered by mention count (descending) to match the chart
+    ordered_features = taxonomy_df.sort_values("mentions", ascending=False)["feature"].tolist()
+    feature_sel = st.selectbox(
+        "Browse example reviews by feature request",
+        options=ordered_features,
+        key="fr_feature",
     )
-    cluster_sel = st.selectbox(
-        "Browse by cluster",
-        options=cluster_counts["cluster_label"].tolist(),
-        key="fr_cluster",
-    )
-    examples = fr_df[fr_df["cluster_label"] == cluster_sel]["request_sentence"].dropna()
+    rx_sel = re.compile(FEATURE_TAXONOMY[feature_sel], re.IGNORECASE)
+    examples = fr_df[fr_df["review_text"].str.contains(rx_sel, regex=True)]["review_text"].dropna()
     examples = examples.sample(min(8, len(examples)), random_state=7)
     for sent in examples:
         st.markdown(f'<div class="review-card">{sent}</div>', unsafe_allow_html=True)
