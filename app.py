@@ -122,6 +122,7 @@ def load_data():
     df      = pd.read_csv("outputs/df_clustered.csv")
     trend   = pd.read_csv("outputs/trend_score.csv")
     cbm     = pd.read_csv("outputs/cluster_by_month.csv", index_col="month")
+    cbm     = cbm[cbm.index >= "2016-03-01"]
     cbm.index = cbm.index.astype(str)
     umap_df = pd.read_csv("outputs/umap_2d.csv")
     return df, trend, cbm, umap_df
