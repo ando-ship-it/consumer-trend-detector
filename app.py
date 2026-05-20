@@ -584,9 +584,9 @@ with fr_right:
     for sent in examples:
         st.markdown(f'<div class="review-card">{sent}</div>', unsafe_allow_html=True)
 
-# ROW 5 — Key Signals Summary
+# ROW 5 — AI Key Signals Summary
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<div class="section-title">📋 Key Signals Summary</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📋 AI Key Signals Summary</div>', unsafe_allow_html=True)
 st.caption("Combined read across Trend Signals (NLP clustering, all ratings) and Feature Requests (3-star reviews). Based on 11,190 reviews, Feb 2015 – Oct 2020.")
 
 _ts = pd.read_csv("outputs/trend_score.csv")
@@ -624,6 +624,16 @@ with sum_left:
             .background_gradient(subset=["% negative reviews"], cmap="Reds"),
         hide_index=True, use_container_width=True,
     )
+
+    st.markdown("**💬 Most-requested features** *(3-star reviews)*")
+    _fr_counts = count_feature_taxonomy(fr_df).sort_values("mentions", ascending=False)
+    _fr_top = _fr_counts.head(6).reset_index(drop=True)
+    _fr_top.columns = ["Feature request", "Mentions"]
+    st.dataframe(
+        _fr_top.style.background_gradient(subset=["Mentions"], cmap="Purples"),
+        hide_index=True, use_container_width=True,
+    )
+    st.caption(f"From {len(fr_df):,} feature-request reviews out of {int((df['score']==3).sum()):,} three-star reviews")
 
 with sum_right:
     st.markdown("**💡 Product implications**")
