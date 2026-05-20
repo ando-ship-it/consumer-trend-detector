@@ -490,10 +490,13 @@ st.markdown("<hr>", unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════════════════════
 # ROW 4 — Feature Requests from 3-star reviews
 # ══════════════════════════════════════════════════════════════════════════════
+_n3 = int((df["score"] == 3).sum())
 st.markdown('<div class="section-title">💬 Feature Requests (3-star reviews)</div>', unsafe_allow_html=True)
 st.caption(
-    "3-star reviews are from users who are **disappointed but not gone** — "
-    "the highest-value retention signal. Reviews filtered by feature-request language patterns."
+    f"Analysed **{_n3:,} three-star reviews** (out of {len(df):,} total). "
+    "3-star users are **disappointed but not gone** — the highest-value retention signal. "
+    "⚠️ **Method: regex keywords** (wish / please add / would love…), not NLP clustering — "
+    "regex targets wish-language specifically, so categories differ from Trend Signals clusters above."
 )
 
 FEATURE_RE = re.compile(
@@ -580,4 +583,69 @@ with fr_right:
     examples = examples.sample(min(8, len(examples)), random_state=7)
     for sent in examples:
         st.markdown(f'<div class="review-card">{sent}</div>', unsafe_allow_html=True)
+
+# ROW 5 — Key Signals Summary
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown('<div class="section-title">📋 Key Signals Summary</div>', unsafe_allow_html=True)
+st.caption("Combined read across Trend Signals (NLP clustering, all ratings) and Feature Requests (3-star reviews). Based on 11,190 reviews, Feb 2015 – Oct 2020.")
+
+_ts = pd.read_csv("outputs/trend_score.csv")
+_ts["growth_pp"]  = (_ts["growth_rate"] * 100).round(1)
+_ts["neg_pct"]    = (_ts["neg_share"]   * 100).round(0).astype(int)
+
+_growing  = _ts[_ts["growth_pp"] > 0].sort_values("growth_pp", ascending=False)
+_declining = _ts[_ts["growth_pp"] < 0].sort_values("growth_pp")
+
+sum_left, sum_right = st.columns(2)
+
+with sum_left:
+    st.markdown("**📈 Growing topics**")
+    _grow_display = _growing[["cluster", "growth_pp", "neg_pct"]].rename(columns={
+        "cluster":   "Cluster",
+        "growth_pp": "Share Δ (pp)",
+        "neg_pct":   "% negative reviews",
+    }).reset_index(drop=True)
+    st.dataframe(
+        _grow_display.style
+            .background_gradient(subset=["Share Δ (pp)"],    cmap="Greens")
+            .background_gradient(subset=["% negative reviews"], cmap="Reds"),
+        hide_index=True, use_container_width=True,
+    )
+
+    st.markdown("**📉 Declining topics**")
+    _decl_display = _declining[["cluster", "growth_pp", "neg_pct"]].rename(columns={
+        "cluster":   "Cluster",
+        "growth_pp": "Share Δ (pp)",
+        "neg_pct":   "% negative reviews",
+    }).reset_index(drop=True)
+    st.dataframe(
+        _decl_display.style
+            .background_gradient(subset=["Share Δ (pp)"],    cmap="Reds_r")
+            .background_gradient(subset=["% negative reviews"], cmap="Reds"),
+        hide_index=True, use_container_width=True,
+    )
+
+with sum_right:
+    st.markdown("**💡 Product implications**")
+    st.markdown("""
+- **Habit tracking → competitive differentiator.**
+  Growing trend (+2.9 pp) with only 12% negative reviews — users engage and ask for more
+  (streaks, routines). Expanding depth here can strengthen retention among the most active users.
+
+- **Calendar integration → highest retention risk.**
+  Sharpest decline (−4.9 pp) and the #1 feature request (51 mentions, 3-star reviews).
+  The gap between expectation and delivery is large — closing it has the highest upside for keeping wavering users.
+
+- **Notifications → reliability, not new features.**
+  Declining trend (−2.3 pp) and #2 feature request (46 mentions). Users want what's already
+  there to work consistently, not a redesign.
+
+- **Sync & login → most urgent technical issue.**
+  −4.5 pp with 77% negative reviews. Almost everyone who writes about it is unhappy.
+  This is the issue most likely to drive churn in the near term.
+
+- **Monetisation model needs review.**
+  Ads and paywall friction declining with 70–74% negative rates. Reducing ad frequency
+  or improving free-tier value could recover disengaged users before they leave for good.
+""")
 
