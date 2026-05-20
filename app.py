@@ -227,7 +227,7 @@ PERIOD_CAPTIONS = {
 }
 st.caption(PERIOD_CAPTIONS[period] + "  Red = needs attention. Green = moving in the right direction.")
 
-# Compute growth_pct based on selected window
+# Compute growth_pct based on selected window (all windows use absolute pp change × 100)
 ts_insight = trend_score_df.copy()
 
 if period == "3-month signal":
@@ -235,8 +235,8 @@ if period == "3-month signal":
     prior_w  = cluster_by_month.iloc[-6:-3].mean()
     def _pct(cluster):
         r = recent_w.get(cluster, 0)
-        p = prior_w.get(cluster, 1e-6)
-        return int(round((r - p) / max(p, 1e-6) * 100))
+        p = prior_w.get(cluster, 0)
+        return round((r - p) * 100, 1)
     ts_insight["growth_pct"] = ts_insight["cluster"].map(_pct)
 
 elif period == "12-month signal":
@@ -244,15 +244,14 @@ elif period == "12-month signal":
     prior_w  = cluster_by_month.iloc[-24:-12].mean()
     def _pct(cluster):
         r = recent_w.get(cluster, 0)
-        p = prior_w.get(cluster, 1e-6)
-        return int(round((r - p) / max(p, 1e-6) * 100))
+        p = prior_w.get(cluster, 0)
+        return round((r - p) * 100, 1)
     ts_insight["growth_pct"] = ts_insight["cluster"].map(_pct)
 
 else:  # Early vs Recent
     ts_insight["growth_pct"] = (
-        (ts_insight["share_recent"] - ts_insight["share_early"])
-        / ts_insight["share_early"].replace(0, 1e-6) * 100
-    ).round(0).astype(int)
+        (ts_insight["share_recent"] - ts_insight["share_early"]) * 100
+    ).round(1)
 
 ts_insight["type"] = ts_insight["cluster"].map(CLUSTER_TYPE)
 
